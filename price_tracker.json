@@ -1,0 +1,705 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        -40
+      ],
+      "id": "7ce6eea7-3e1d-4a01-94c6-adf07178ca26",
+      "name": "Telegram Trigger",
+      "webhookId": "6f1ff429-57ca-4bf7-94f7-a5d74bf00346",
+      "credentials": {
+        "telegramApi": {
+          "id": "wzI64JPi28QcW3go",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "text message will be in natural language,like \"hey, i love this thing and i was wondering if this thing's price is below something\".If a price is given store it in expectedPrice, if percentages are given store it in Discount,but store number only.Also stote time period like Days,weeks,months,years in timePeriod.\n\nReturn all numbers except for link\n"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1200,
+        -40
+      ],
+      "id": "d7466aba-b62f-43d2-955d-d75bddb794ab",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        180
+      ],
+      "id": "4d79a4f6-d413-4da5-939b-e1fc19149dc9",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jbhuoWs4UhySb9nl",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"expectedPrice\" : \"\",\n  \"Time\":\"\",\n  \"Link\":\"\",\n  \"Discount\":\"\",\n  \"TimePeriod\":\"\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        160
+      ],
+      "id": "e5d781de-4f9b-4a7d-b8c8-038f60914adc",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Basic LLM Chain').item.json.output.Link }}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2180,
+        -60
+      ],
+      "id": "656193a3-fdb4-4a21-9506-c5f85af35b75",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "Price",
+              "cssSelector": "span.a-price-whole",
+              "returnValue": "html"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        2360,
+        -60
+      ],
+      "id": "146e008c-b33e-4c2e-aa0b-a176e5de7760",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2ad9f511-9561-4a0f-a683-ff865715376a",
+              "leftValue": "={{ $('Edit Fields1').item.json.Price }}",
+              "rightValue": "={{ $('e1').item.json.expectedPrice }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4020,
+        -60
+      ],
+      "id": "6cee02e2-0d31-400c-a028-b25ea3f0d6fd",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "6313394129",
+        "text": "=Product: {{ $('e1').item.json.Link }}\n\nPrice:{{ $('Edit Fields').item.json.Price }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4360,
+        -240
+      ],
+      "id": "41cd0fa7-46e8-4ff7-a646-8974e1d811b6",
+      "name": "Telegram1",
+      "credentials": {
+        "telegramApi": {
+          "id": "wzI64JPi28QcW3go",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": "={{ $('e1').item.json.Time }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        4280,
+        60
+      ],
+      "id": "2ad3baab-f64e-452a-be54-fa39f44f6551",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('e1').item.json.Time }}",
+        "unit": "={{ $('e1').item.json.Timeperiod }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4500,
+        180
+      ],
+      "id": "f39b76ee-e09d-4406-a71c-a778286537f9",
+      "name": "Wait",
+      "webhookId": "d20aa884-c0cd-4269-a27b-2ee586f92c27"
+    },
+    {
+      "parameters": {
+        "chatId": "6313394129",
+        "text": "=We out of luck. \nPrice:{{ $('HTML').item.json.Price }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4540,
+        -20
+      ],
+      "id": "606bc2b2-cbf2-4abb-96fa-e42f7e6783af",
+      "name": "Telegram",
+      "credentials": {
+        "telegramApi": {
+          "id": "wzI64JPi28QcW3go",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a7822acd-3b47-4b0d-a3dc-4f56624fd1f1",
+              "name": "expectedPrice",
+              "value": "={{ $json.output.expectedPrice }}",
+              "type": "number"
+            },
+            {
+              "id": "4b85b4c0-80f8-4f9c-80b2-d0f2ff6ab6d7",
+              "name": "Time",
+              "value": "={{ $json.output.Time }}",
+              "type": "number"
+            },
+            {
+              "id": "b71707c1-87a8-48b4-b77d-2e22a7935056",
+              "name": "Link",
+              "value": "={{ $json.output.Link }}",
+              "type": "string"
+            },
+            {
+              "id": "dd7cafd8-a2c4-40b1-8560-de688bc6af2b",
+              "name": "Discount",
+              "value": "={{ $json.output.Discount }}",
+              "type": "number"
+            },
+            {
+              "id": "d317dc23-06a6-4fe6-b9f2-feb7c9132f92",
+              "name": "Timeperiod",
+              "value": "={{ $json.output.TimePeriod }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1560,
+        -40
+      ],
+      "id": "0420c950-a03c-4df1-b52a-ac435423395d",
+      "name": "e1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9d6e550f-3d92-4bac-863b-76e2dabf5120",
+              "name": "Price",
+              "value": "={{ $json.Price }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3260,
+        -60
+      ],
+      "id": "4ee7d984-395b-42d0-97d0-c4271299d185",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1wKh6P7ctoBh24BbLoeol2bN6kkYciRakm_ohrEF40GI",
+          "mode": "list",
+          "cachedResultName": "Price",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wKh6P7ctoBh24BbLoeol2bN6kkYciRakm_ohrEF40GI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 516351193,
+          "mode": "list",
+          "cachedResultName": "n8n-sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wKh6P7ctoBh24BbLoeol2bN6kkYciRakm_ohrEF40GI/edit#gid=516351193"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $('Date & Time').item.json.currentDate }}",
+            "Price": "={{ $json.Price }}"
+          },
+          "matchingColumns": [
+            "Date"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Price",
+              "displayName": "Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2980,
+        -60
+      ],
+      "id": "20c789ba-168d-44a6-89ae-f5ea8de259f9",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ZzWsFyhCbQcQWEzI",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        -60
+      ],
+      "id": "df6319f4-ffca-46d5-bf89-f1e53eb9d447",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2e9410ec-13e0-4013-a76e-153d41e5fa1b",
+              "name": "Price",
+              "value": "={{ $('HTML').item.json.Price }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2720,
+        -60
+      ],
+      "id": "60b85aac-d641-429c-bb8f-32e46d944f7d",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    [$input.first().json.expectedPrice]: $('Edit Fields').first().json.Price * (1 - $('e1').first().json.Discount / 100)\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3700,
+        -140
+      ],
+      "id": "0b0bdbe1-bc12-4e68-b2f8-56c22ccafbc3",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "535c153f-68bc-40fd-8d9d-d73b60687317",
+              "leftValue": "={{ $('e1').item.json.Discount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3460,
+        -60
+      ],
+      "id": "e164bb15-7479-4ebb-8ea5-2c70ad3bc012",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e8dfc91f-b5ec-4fa3-8ff9-196a9f7645db",
+              "leftValue": "={{ $json.Link }}",
+              "rightValue": "amzon",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1780,
+        -40
+      ],
+      "id": "1339e374-c15f-417e-aa19-49e980dcc3cc",
+      "name": "If2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "e1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram1": {
+      "main": [
+        []
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "e1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e5b20e20-1696-4743-95f2-3fba1c4f4533",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "wJ3QoZvgPfXr77A5",
+  "tags": []
+}
